@@ -1,4 +1,4 @@
-# UNM Hololens FireFighting Project
+# ECE 595 Reinforcement Learning Project
 
 **Version:** 1.0.0
 

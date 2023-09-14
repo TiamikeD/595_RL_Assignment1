@@ -1,6 +1,7 @@
 # Import necessary libraries
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 
 np.random.seed(19680801)
 
@@ -19,10 +20,16 @@ def plot3d(anchor_points = [], target_point = [], iterator = []):
 
     ax.scatter(iterator[0], iterator[1], iterator[2], c="green")
 
+    blue_diamond = mlines.Line2D([], [], color='blue', marker='D', linestyle='None', markersize=10, label='Anchor Point')
+    red_x = mlines.Line2D([], [], color='red', marker='X', linestyle='None', markersize=10, label='Target')
+    green_dot = mlines.Line2D([], [], color='green', marker='.',linestyle='None', markersize=10, label='Iterator')
 
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
+    plt.legend(handles=[blue_diamond, red_x, green_dot])
+
+
+    ax.set_xlabel('X Axis')
+    ax.set_ylabel('Y Axis')
+    ax.set_zlabel('Z Axis')
 
     plt.show()
 
@@ -96,8 +103,8 @@ for epsilon in epsilons:
 
     # Main loop for the epsilon-greedy bandit algorithm
 
-    for i in range(total_steps):
-        print(i)
+#    for i in range(total_steps):
+#        print(i)
 
 
 

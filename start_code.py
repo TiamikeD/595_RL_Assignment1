@@ -2,12 +2,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import sympy
 
 np.random.seed(19680801)
 
 POSSIBLE_ACTIONS = ["012","013","014","023","024","034","123","134","234","124"]
 
-def plot3d(anchor_points = [], target_point = [], iterator = []):
+def plot3d(anchor_points = [], target_point = [], iterator = []): # KEITH
     print(anchor_points)
 
     fig = plt.figure()
@@ -35,18 +36,33 @@ def plot3d(anchor_points = [], target_point = [], iterator = []):
 
     return
 
+def choose_anchors(anchors, epsilon): # TIAMIKE
+    # explore = np.random.binomial(1, epsilon) # Decide to explore or not
+    # if explore == 1: # Choose 3 random anchors (Explore)
+    recs = np.random.choice(anchors, size=num_anchors_to_choose, replace=False)
+    # else: # Choose most promising anchors (Exploit)
+        # Rank anchors by their reward
+        # Choose the three highest ranked anchors
+        # recs = [1,2,3]
+    return recs
 
-def get_q_values(rewards = [], action_count=0):
-
-    return [0,0,0,0]
+def calculate_q_values(rewards = [], action_count=0):
+    # Qn = (R1+R2+...+Rn) / (n-1)
+    # When recalculating, use the existing Q values instead of recalculating:
+    # Q(n+1) = (1/n)(Rn - Qn)   (pg. 31 of textbook)
+    return [0,0,0,0,0]
 
 ### Step 1: Initialize the problem parameters.
 
 num_anchor_nodes = 5
 total_steps = 100000
+num_anchors_to_choose = 3
 
 # Initialize anchor node positions and target position
 anchor_positions = np.array([[11, 30, 10], [5, 40, -20], [15, 40, 30], [5, 35, 20], [15, 35, -10]], dtype=float)
+anchor_labels = [0,1,2,3,4]
+
+# Eirini says we're not supposed to use the target_position. We only use the pseudoranges.
 target_position = [10, 35, 0.1]
 
 
@@ -78,53 +94,44 @@ def calculate_reward(gdop):
 ### Step 2: Implement the Bandit Algorithm.
 
 # Loop through the epsilon values
-
-action_count = 0
-rewards = [0,0,0,0]
-
-
 for epsilon in epsilons:
 
-    action_count = 0
-
     # Initializing the 'position_stimate' to 'position_initial_estimate'
-
-
     position_estimate = position_initial_estimate.copy()
 
 
-
-
     # Initialize action counts for each epsilon
+    action_count = 0
 
     # Initialize Q-values for each epsilon
-
-    q_values = get_q_values(rewards, action_count)
+    # Tiamike: Also initializing R-values. 5 elements for 5 anchors.
+    Q_of_a = [0,0,0,0,0]
+    R_of_a = [0,0,0,0,0]
 
     # Main loop for the epsilon-greedy bandit algorithm
-
-#    for i in range(total_steps):
-#        print(i)
-
-
-
+    for i in range(total_steps):
+        # print( "Iteration: " + str(i) )
 
         # Select three anchor nodes (action A)
+        # Exploration: Choose random actions
+        # Exploitation: Choose actions with highest Q-values
+        # Right now, choose_anchors() selects the index of the anchor.
+        chosen_anchors = choose_anchors(anchor_labels, epsilon)
+        print( "Chosen Anchors: " + str(chosen_anchors) )
 
+# plot3d(anchor_positions, target_position, position_initial_estimate)
 
+        # Tiamike: I'm assuming selected_positions are the positions of the anchors that were chosen.
+        selected_positions = []
+        for index in chosen_anchors:
+            selected_positions.append(anchor_positions[index])
+        print("selected_positions: " + str(selected_positions))
 
-            # Exploration: Choose random actions
-
-
-            # Exploitation: Choose actions with highest Q-values
+        # selected_positions = [i for i in range(10)]
 
         # Code for determining pseudoranges
-
-plot3d(anchor_positions, target_position, position_initial_estimate)
-
-#selected_positions = [i for i in range(10)]
-
-#pseudoranges = [euclidean_distance(selected_positions[i], position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(3)]
+        pseudoranges = [euclidean_distance(selected_positions[i], position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
+        print("Pseudoranges: " + str(pseudoranges))
 
         # Determine the 'jacobian' matrix based on the selected anchor nodes
 
@@ -133,16 +140,16 @@ plot3d(anchor_positions, target_position, position_initial_estimate)
 
 
         # Determine the 'reward' R(A) using the 'gdop' value
-
+        # R_of_a = 
 
         # Update action counts N(A)
-
+        # action_count++
 
         # Update Q-values Q(A)
-
+        # Q_of_a = 
 
         # Update position estimate
-
+        # position_estimate = 
 
         # Store GDOP(A), R(A), Euclidean distance error for each step of 'total_steps'
 

@@ -7,24 +7,51 @@ import bandit as bd
 
 np.random.seed(19680801)
 
-POSSIBLE_ACTIONS = ["012","013","014","023","024","034","123","134","234","124"]
 
-def choose_anchors(anchors, epsilon): # TIAMIKE
+POSSIBLE_ACTIONS = [np.array([0,1,2]),np.array([0,1,3]),np.array([0,1,4]),np.array([0,2,3]),np.array([0,2,4]),np.array([0,3,4]),np.array([1,2,3]),np.array([1,3,4]),np.array([2,3,4]),np.array([1,2,4])]
+
+def get_action_index(recs): # KEITH
+    for action_index, action in enumerate(POSSIBLE_ACTIONS):
+        if((recs == action).all()):
+            return action_index
+    return -1
+
+def get_new_deltas_to_calculate_new_position(jacobian, pseudoranges):
+    jacobian_transpose = jacobian.T
+    jacobian_dot_jacobian_transpose = np.dot(jacobian.T, jacobian)
+    inverse_matrix = np.linalg.inv(jacobian_dot_jacobian_transpose)
+    multiply_me_with_residual = np.dot(inverse_matrix, jacobian_transpose)
+    residual = np.array( [ [pseudoranges[0]], [pseudoranges[1]], [pseudoranges[2]] ] )
+    print("Residual: " + str(residual))
+
+
+
+    print(f"Transpose:\t\n{jacobian_transpose}\n\n  Dot Product:\t\n{jacobian_dot_jacobian_transpose}\n\n inverse_matrix\t{inverse_matrix}\n\n  multiply_me_with_residual\n{multiply_me_with_residual}\n")
+    return_me = np.dot(multiply_me_with_residual, residual)
+
+    print(f"return_me\n{return_me}\n")
+
+
+    return  return_me #np.dot(np.dot(jacobian.T, np.linalg.inv(np.dot(jacobian.T, jacobian))), np.array([pseudorange for pseudorange in pseudoranges])) 
+
+# where we left off: add delta to position function
+
+def choose_anchors(anchors, anchor_positions, epsilon): # TIAMIKE
     # explore = np.random.binomial(1, epsilon) # Decide to explore or not
     # if explore == 1: # Choose 3 random anchors (Explore)
     recs = np.random.choice(anchors, size=num_anchors_to_choose, replace=False)
     # else: # Choose most promising anchors (Exploit)
         # Rank anchors by their reward
         # Choose the three highest ranked anchors
-        # recs = [1,2,3]
+    recs = np.sort(recs)
     return recs
 
-def calculate_q_value(reward, prev_q, action_count=0):
+def calculate_q_value(reward, prev_q, action_count):
     # Qn = (R1+R2+...+Rn) / (n-1)
     # When recalculating, use the existing Q values instead of recalculating:
     # Q(n+1) = (1/n)(Rn - Qn)   (pg. 31 of textbook)
-    # Q = (1 / action_count) * reward * 
-    return [0]
+    Q = (1 / action_count) * (reward - prev_q)
+    return Q
 
 ### Step 1: Initialize the problem parameters.
 
@@ -73,6 +100,8 @@ for epsilon in epsilons:
     # Initializing the 'position_stimate' to 'position_initial_estimate'
     # p(hat) ^ (ite)=0
     position_estimate = position_initial_estimate.copy()
+    current_position = position_initial_estimate.copy()
+    all_positions = [position_estimate]
 
 
     # Initialize action counts for each epsilon
@@ -81,8 +110,8 @@ for epsilon in epsilons:
     # Initialize Q-values for each epsilon
     # Tiamike: Also initializing R-values. These are single digit numbers 
     # because each action has only one reward associated
-    prev_q = 0
-    Q_of_a = 0
+    prev_q = [0,0,0,0,0,0,0,0,0,0,0]
+    Q_of_a = [0,0,0,0,0,0,0,0,0,0,0]
     R_of_a = 0
 
     # Main loop for the epsilon-greedy bandit algorithm
@@ -93,7 +122,7 @@ for epsilon in epsilons:
         # Exploration: Choose random actions
         # Exploitation: Choose actions with highest Q-values
         # Right now, choose_anchors() selects the index of the anchor.
-        chosen_anchors = choose_anchors(anchor_labels, epsilon)
+        chosen_anchors = choose_anchors(anchor_labels, anchor_positions, epsilon)
         print( "Chosen Anchors: " + str(chosen_anchors) )
 
         # Tiamike: I'm assuming selected_positions are the positions of the anchors that were chosen.
@@ -144,20 +173,29 @@ for epsilon in epsilons:
 
         # Determine the 'gdop' value GDOP(A) from the calculated 'jacobian'
         gdop = calculate_gdop(jacobian_matrix)
-        print( "GDOP: " + str(gdop) )
+        # print( "GDOP: " + str(gdop) )
         # Determine the 'reward' R(A) using the 'gdop' value
         R_of_a = calculate_reward(gdop)
-        print( "Reward: " + str(R_of_a) )
+        # print( "Reward: " + str(R_of_a) )
 
         # Update action counts N(A)
         action_count += 1
 
         # Update Q-values Q(A)
-        Q_of_a = calculate_q_value(R_of_a, action_count)
-        prev_q = Q_of_a
+        current_action_index = get_action_index(chosen_anchors)
+        # print("Get action index: " + str(current_action_index))
+
+        Q_of_a[current_action_index] = calculate_q_value(R_of_a, prev_q[current_action_index], action_count)
+        prev_q[current_action_index] = Q_of_a[current_action_index]
+        print("prev q: " + str(prev_q))
+        print("Q of a: " + str(Q_of_a))
 
         # Update position estimate
-        # position_estimate = 
+        new_position_deltas = get_new_deltas_to_calculate_new_position(jacobian_matrix, pseudoranges)
+        position_estimate = position_estimate + new_position_deltas
+        print("New position estimate: " + str(position_estimate))
+        all_positions.append(position_estimate)
+
 
         # Store GDOP(A), R(A), Euclidean distance error for each step of 'total_steps'
 
@@ -180,4 +218,4 @@ iterator_points = np.array([0,0,0])
 for i in range(10):
     iterator_points = np.vstack([iterator_points, np.array([i,i,i])])
 
-bd.plot3d(anchor_positions, target_position, position_initial_estimate, iterator_points)
+#bd.plot3d(anchor_positions, target_position, position_initial_estimate, iterator_points)

@@ -109,3 +109,11 @@ def calculate_gdop(jacobian):
 
 def calculate_reward(gdop):
     return np.sqrt(10/3) / gdop if gdop > 0 else 0
+
+def red_string_for_print(change_me_to_red)->str:
+    return f"\033[31m{change_me_to_red}\033[0m"
+
+def print_exception(message, exception)->None:
+    print(red_string_for_print(message))
+    print(f"\t{exception}")
+    return

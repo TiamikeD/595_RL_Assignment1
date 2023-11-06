@@ -47,3 +47,29 @@ def plot3d(anchor_points = [], target_point = [], position_initial_estimate = []
     plt.show()
 
     return
+
+
+
+
+def plot2d(x, y):
+
+
+
+    # Create a figure and axis
+    fig, ax = plt.subplots()
+
+    # Plot the data
+    ax.plot(x, y, label='error', color='blue')
+
+    ax.set_xlabel('X-axis')
+    ax.set_ylabel('Y-axis')
+    ax.legend()
+
+    # Show the plot
+    plt.show()
+
+
+
+
+
+    return

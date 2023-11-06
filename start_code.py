@@ -45,9 +45,9 @@ def get_residual_row(anchor_position, current_position):
     return math.sqrt(dx + dy + dz)
 
 def get_residual_matrix(anchor_positions, current_position, pseudoranges):
-    residual_row_f = get_residual_row(anchor_positions[0], current_position) - pseudoranges[0]
-    residual_row_g = get_residual_row(anchor_positions[1], current_position) - pseudoranges[1]
-    residual_row_h = get_residual_row(anchor_positions[2], current_position) - pseudoranges[2]
+    residual_row_f = get_residual_row(anchor_positions[0], current_position) #- pseudoranges[0]
+    residual_row_g = get_residual_row(anchor_positions[1], current_position) #- pseudoranges[1]
+    residual_row_h = get_residual_row(anchor_positions[2], current_position) #- pseudoranges[2]
     residual_matrix = np.array( [[residual_row_f], [residual_row_g], [residual_row_h]] )
     return residual_matrix
 
@@ -117,7 +117,7 @@ target_position = [10, 35, 0.1]
 
 # Define two epsilon values
 # epsilons = [0.01, 0.3]
-epsilons = [0.01]
+epsilons = [0.001]
 
 # Calculate the centroid of anchor node positions
 centroid = np.mean(anchor_positions, axis=0)
@@ -167,7 +167,7 @@ for epsilon in epsilons:
 
     # Main loop for the epsilon-greedy bandit algorithm
     for i in range(total_steps):
-        # print( "Iteration: " + str(i) )
+        print( "Iteration: " + str(i) )
         
         # Select three anchor nodes (action A)
         # Exploration: Choose random actions
@@ -221,24 +221,8 @@ for epsilon in epsilons:
         # A = ( Xa - X^t )^2 + ( Ya - Y^t )^2 + (Za - Z^t)^2
         # FA, GA, HA are the constants for function f, g and h
         FA = (selected_positions[0][0] - position_estimate[0])**2 + (selected_positions[0][1] - position_estimate[1])**2 + (selected_positions[0][2] - position_estimate[2])**2
-        # print("FA: " + str(FA))
         GA = (selected_positions[1][0] - position_estimate[0])**2 + (selected_positions[1][1] - position_estimate[1])**2 + (selected_positions[1][2] - position_estimate[2])**2
         HA = (selected_positions[2][0] - position_estimate[0])**2 + (selected_positions[2][1] - position_estimate[1])**2 + (selected_positions[2][2] - position_estimate[2])**2
-
-        # # fa, fb, fc are the first row of the jacobian matrix
-        # fa = - 1 / (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
-        # fb = - 1 / (FA**(0.5)) * (selected_positions[0][1] - position_estimate[1])
-        # fc = - 1 / (FA**(0.5)) * (selected_positions[0][2] - position_estimate[2])
-
-        # # ga, gb, gc are the second row of the jacobian matrix
-        # ga = - 1 / (GA**(0.5)) * (selected_positions[1][0] - position_estimate[0])
-        # gb = - 1 / (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
-        # gc = - 1 / (GA**(0.5)) * (selected_positions[1][2] - position_estimate[1])
-
-        # # ga, gb, gc are the third row of the jacobian matrix
-        # ha = - 1 / (HA**(0.5)) * (selected_positions[2][0] - position_estimate[0])
-        # hb = - 1 / (HA**(0.5)) * (selected_positions[2][1] - position_estimate[0])
-        # hc = - 1 / (HA**(0.5)) * (selected_positions[2][2] - position_estimate[0])
 
         # fa, fb, fc are the first row of the jacobian matrix
         fa = - (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
@@ -248,17 +232,17 @@ for epsilon in epsilons:
         # ga, gb, gc are the second row of the jacobian matrix
         ga = - (GA**(0.5)) * (selected_positions[1][0] - position_estimate[0])
         gb = - (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
-        gc = - (GA**(0.5)) * (selected_positions[1][2] - position_estimate[1])
+        gc = - (GA**(0.5)) * (selected_positions[1][2] - position_estimate[2])
 
         # ga, gb, gc are the third row of the jacobian matrix
         ha = - (HA**(0.5)) * (selected_positions[2][0] - position_estimate[0])
-        hb = - (HA**(0.5)) * (selected_positions[2][1] - position_estimate[0])
-        hc = - (HA**(0.5)) * (selected_positions[2][2] - position_estimate[0])
+        hb = - (HA**(0.5)) * (selected_positions[2][1] - position_estimate[1])
+        hc = - (HA**(0.5)) * (selected_positions[2][2] - position_estimate[2])
 
         jacobian_matrix = np.array([[fa, fb, fc],
                                     [ga, gb, gc],
                                     [ha, hb, hc]])
-        #print("Jacobian matrix: " + str(jacobian_matrix))
+        # print("Jacobian matrix: " + str(jacobian_matrix))
 
         # Determine the 'gdop' value GDOP(A) from the calculated 'jacobian'
         gdop = calculate_gdop(jacobian_matrix)
@@ -270,26 +254,27 @@ for epsilon in epsilons:
         # Update action counts N(A)
         action_count += 1
 
-        # Update Q-values Q(A)
         current_action_index = get_action_index(chosen_anchors)
         # print("Get action index: " + str(current_action_index))
 
+        # Update Q-values Q(A)
         # prev_q[current_action_index] = Q_of_a[current_action_index]
         Q_of_a[current_action_index] = calculate_q_value(R_of_a, prev_q[current_action_index], action_count)
         # print("prev q: " + str(prev_q))
-        # print("Q of a: " + str(Q_of_a))
+        print("Q of a: " + str(Q_of_a))
 
         # Update position estimate
         residual = get_residual_matrix(anchor_positions, position_estimate, pseudoranges)
 
         new_position_deltas = get_new_deltas_to_calculate_new_position(jacobian_matrix, selected_positions, pseudoranges, residual)
-        #print("new position deltas: " + str(new_position_deltas))
+        # print("new position deltas: " + str(new_position_deltas))
         position_estimate = position_estimate + new_position_deltas
         #print("New position estimate: " + str(position_estimate))
         all_positions.append(position_estimate)
-        print(position_estimate)
+        # print(position_estimate)
 
         distance_errors.append( euclidean_distance(position_estimate, target_position) )
+        
 
 
 
@@ -317,6 +302,9 @@ for epsilon in epsilons:
 
 
 #bd2.plot3d(anchor_positions, target_position, position_initial_estimate, current_position, centroid)
-# bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
+bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
+
+# print(distance_errors)
+
 x_axis = [i for i in range(total_steps)]
 bdplot.plot2d(x_axis, distance_errors)

@@ -11,7 +11,7 @@ np.random.seed(19680801)
 
 
 num_anchor_nodes = 5
-total_steps = 100
+total_steps = 1000
 num_anchors_to_choose = 3
 
 POSSIBLE_ACTIONS = [np.array([0,1,2]),np.array([0,1,3]),np.array([0,1,4]),np.array([0,2,3]),np.array([0,2,4]),np.array([0,3,4]),np.array([1,2,3]),np.array([1,3,4]),np.array([2,3,4]),np.array([1,2,4])]
@@ -53,7 +53,7 @@ def get_residual_matrix(anchor_positions, pseudoranges):
 
 def get_new_deltas_to_calculate_new_position(jacobian, anchor_positions, pseudoranges, residual):
     jacobian_transpose = jacobian.T
-    jacobian_dot_jacobian_transpose = np.dot(jacobian.T, jacobian)
+    jacobian_dot_jacobian_transpose = np.dot(jacobian_transpose, jacobian)
     inverse_matrix = np.linalg.inv(jacobian_dot_jacobian_transpose)
 
     multiply_me_with_residual = np.dot(inverse_matrix, jacobian_transpose)
@@ -78,6 +78,7 @@ def choose_anchors_for_exploring(anchors):
 
 def choose_anchors_for_exploiting(Q_values):
     index_of_highest = get_index_of_highest_reward_action(Q_values)
+    print("index of highest:" + str(index_of_highest))
     return POSSIBLE_ACTIONS[index_of_highest]
 
 def choose_anchors(anchors, anchor_positions, epsilon, Q_values): # TIAMIKE
@@ -115,7 +116,8 @@ target_position = [10, 35, 0.1]
 
 
 # Define two epsilon values
-epsilons = [0.01, 0.3]
+# epsilons = [0.01, 0.3]
+epsilons = [0.01]
 
 # Calculate the centroid of anchor node positions
 centroid = np.mean(anchor_positions, axis=0)
@@ -164,8 +166,8 @@ for epsilon in epsilons:
 
     # Main loop for the epsilon-greedy bandit algorithm
     for i in range(total_steps):
-        # print( "Iteration: " + str(i) )
-
+        print( "Iteration: " + str(i) )
+        
         # Select three anchor nodes (action A)
         # Exploration: Choose random actions
         # Exploitation: Choose actions with highest Q-values
@@ -173,11 +175,15 @@ for epsilon in epsilons:
 
 
         explore = check_if_explore_or_exploit(epsilon)
-        exploit = not explore
 
+        if(0 == i):
+            explore = True
+
+        exploit = not explore
+        
         if(explore): 
-            print("exploring...")
-            chosen_anchors = choose_anchors_for_exploring(anchor_labels)
+           print("exploring...")
+           chosen_anchors = choose_anchors_for_exploring(anchor_labels)
         if(exploit):
             print("exploiting...")
             chosen_anchors = choose_anchors_for_exploiting(Q_of_a)
@@ -275,7 +281,7 @@ for epsilon in epsilons:
         # prev_q[current_action_index] = Q_of_a[current_action_index]
         Q_of_a[current_action_index] = calculate_q_value(R_of_a, prev_q[current_action_index], action_count)
         # print("prev q: " + str(prev_q))
-        #print("Q of a: " + str(Q_of_a))
+        print("Q of a: " + str(Q_of_a))
 
         # Update position estimate
         residual = get_residual_matrix(anchor_positions, pseudoranges)
@@ -290,7 +296,7 @@ for epsilon in epsilons:
 
 
 
-        bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
+        # bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
         #print(f"\n\n\n DONE WITH ONE STEP {i} \n\n\n")
 
         # Store GDOP(A), R(A), Euclidean distance error for each step of 'total_steps'
@@ -313,3 +319,4 @@ for epsilon in epsilons:
 
 
 #bd2.plot3d(anchor_positions, target_position, position_initial_estimate, current_position, centroid)
+bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)

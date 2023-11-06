@@ -4,38 +4,42 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import sympy
 import bandit as bd
+import plot as bdplot
 import math
 
 np.random.seed(19680801)
 
 
 num_anchor_nodes = 5
-total_steps = 100000
+total_steps = 100
 num_anchors_to_choose = 3
 
 POSSIBLE_ACTIONS = [np.array([0,1,2]),np.array([0,1,3]),np.array([0,1,4]),np.array([0,2,3]),np.array([0,2,4]),np.array([0,3,4]),np.array([1,2,3]),np.array([1,3,4]),np.array([2,3,4]),np.array([1,2,4])]
 
 def get_action_index(recs): # KEITH
     for action_index, action in enumerate(POSSIBLE_ACTIONS):
+        #print("Action_index:\t" + str(action_index))
+        #print("Action:\t" + str(action))
+        #print("recs:\t"+str(recs))
         if((recs == action).all()):
             return action_index
     return -1
 
 def get_residual_row(anchor_position, pseudorange):
     #calculate the three elements under the square root
-    print(f"anchor_position[0]: {anchor_position[0]}\n")
-    print(f"\npseudorange[0]: {pseudorange[0]}\n")
-    print(f"\nanchor_position[1]: {anchor_position[1]}\n")
-    print(f"\npseudorange[1]: {pseudorange[1]}\n")
-    print(f"\nanchor_position[2]: {anchor_position[2]}\n")
-    print(f"\npseudorange[2]: {pseudorange[2]}\n")
+    #print(f"anchor_position[0]: {anchor_position[0]}")
+    #print(f"\npseudorange[0]: {pseudorange[0]}")
+    #print(f"\nanchor_position[1]: {anchor_position[1]}")
+    #print(f"\npseudorange[1]: {pseudorange[1]}")
+    #print(f"\nanchor_position[2]: {anchor_position[2]}")
+    #print(f"\npseudorange[2]: {pseudorange[2]}")
 
     dx = (anchor_position[0] - pseudorange[0]) ** 2 
     dy = (anchor_position[1] - pseudorange[1]) ** 2 
     dz = (anchor_position[2] - pseudorange[2]) ** 2 
-    print(f"\ndx: {dx}\n")
-    print(f"\ndy: {dy}\n")
-    print(f"\ndz: {dz}\n")
+    #print(f"\ndx: {dx}\n")
+    #print(f"\ndy: {dy}\n")
+    #print(f"\ndz: {dz}\n")
 
     #take the square root of the sum of the three elements
     return math.sqrt(dx + dy + dz)
@@ -54,27 +58,43 @@ def get_new_deltas_to_calculate_new_position(jacobian, anchor_positions, pseudor
 
     multiply_me_with_residual = np.dot(inverse_matrix, jacobian_transpose)
     # residual = get_residual_matrix(anchor_positions, pseudoranges)
-    print("Residual: " + str(residual))
+    #print("Residual: " + str(residual))
 
-    print(f"Transpose:\t\n{jacobian_transpose}\n\n  Dot Product:\t\n{jacobian_dot_jacobian_transpose}\n\n inverse_matrix\t{inverse_matrix}\n\n  multiply_me_with_residual\n{multiply_me_with_residual}\n")
+    #print(f"Transpose:\t\n{jacobian_transpose}\n\n  Dot Product:\t\n{jacobian_dot_jacobian_transpose}\n\n inverse_matrix\t{inverse_matrix}\n\n  multiply_me_with_residual\n{multiply_me_with_residual}\n")
     return_me = np.dot(multiply_me_with_residual, residual)
 
     return  np.matrix.flatten(return_me) #np.dot(np.dot(jacobian.T, np.linalg.inv(np.dot(jacobian.T, jacobian))), np.array([pseudorange for pseudorange in pseudoranges])) 
 
-# where we left off: add delta to position function
+def get_index_of_highest_reward_action(Q_values):
+    max_value = max(Q_values)
+    return Q_values.index(max_value)
 
-def choose_anchors(anchors, anchor_positions, epsilon): # TIAMIKE
-    # explore = np.random.binomial(1, epsilon) # Decide to explore or not
-    # if explore: # Choose 3 random anchors (Explore)
-    recs = np.random.choice(anchors, size=num_anchors_to_choose, replace=False)
-    # else: # Choose most promising anchors (Exploit)
-    #     # Rank anchors by their reward
-    #     print("anchors: " + str(anchors))
-    #     print("anchor_positions: " + str(anchor_positions))
-    #     # Choose the three highest ranked anchors
-    #     recs = np.random.choice(anchors, size=num_anchors_to_choose, replace=False)
+def check_if_explore_or_exploit(epsilon):
+    return np.random.binomial(1, epsilon)
+
+def choose_anchors_for_exploring(anchors):
+        return np.sort(np.random.choice(anchors, size=num_anchors_to_choose, replace=False)) #Number of lines  giving me suicidal thoughts: 1
+
+
+def choose_anchors_for_exploiting(Q_values):
+    index_of_highest = get_index_of_highest_reward_action(Q_values)
+    return POSSIBLE_ACTIONS[index_of_highest]
+
+def choose_anchors(anchors, anchor_positions, epsilon, Q_values): # TIAMIKE
+    explore = check_if_explore_or_exploit(epsilon)
+    if(explore): # Choose 3 random anchors (Explore)
+        print("exploring...")
+        return np.sort(np.random.choice(anchors, size=num_anchors_to_choose, replace=False)) #Number of lines  giving me suicidal thoughts: 1
+    else: # Choose most promising anchors (Exploit)
+        # Rank anchors by their reward
+        print("exploiting...")
+        #print("anchors: " + str(anchors))
+        #print("anchor_positions: " + str(anchor_positions))
+        index_of_highest = get_index_of_highest_reward_action(Q_values)
+        print(f"index_of_highest:\t{index_of_highest}")
+        # Choose the three highest ranked anchors
+        return anchor_positions[index_of_highest]
         
-    return recs
 
 def calculate_q_value(reward, prev_q, action_count):
     # Qn = (R1+R2+...+Rn) / (n-1)
@@ -111,7 +131,7 @@ def euclidean_distance(a, b):
 def calculate_gdop(jacobian):
     G = np.linalg.inv(np.dot(jacobian.T, jacobian))
     gdop = np.sqrt(np.trace(G))
-    print("GDOP: " + str(gdop))
+    #print("GDOP: " + str(gdop))
     return gdop
 
 # Function to calculate reward based on GDOP
@@ -124,7 +144,7 @@ def calculate_reward(gdop):
 
 # Loop through the epsilon values
 for epsilon in epsilons:
-
+    selected_positions = []
     # Initializing the 'position_stimate' to 'position_initial_estimate'
     # p(hat) ^ (ite)=0
     position_estimate = position_initial_estimate.copy()
@@ -150,14 +170,36 @@ for epsilon in epsilons:
         # Exploration: Choose random actions
         # Exploitation: Choose actions with highest Q-values
         # Right now, choose_anchors() selects the index of the anchor.
-        chosen_anchors = choose_anchors(anchor_labels, anchor_positions, epsilon)
-        print( "Chosen Anchors: " + str(chosen_anchors) )
+
+
+        explore = check_if_explore_or_exploit(epsilon)
+        exploit = not explore
+
+        if(explore): 
+            print("exploring...")
+            chosen_anchors = choose_anchors_for_exploring(anchor_labels)
+        if(exploit):
+            print("exploiting...")
+            chosen_anchors = choose_anchors_for_exploiting(Q_of_a)
+
+        #chosen_anchors = choose_anchors()
+        #print( "Chosen Anchors: " + str(chosen_anchors) )
 
         # Tiamike: I'm assuming selected_positions are the positions of the anchors that were chosen.
-        selected_positions = []
+        #print("%%%%%%%%%%%%%%%%%%%%%%%%")
+        print(f"chosen_anchors:\t{chosen_anchors}")
+
+
+
         for index in chosen_anchors:
             selected_positions.append(anchor_positions[index])
-        print("selected_positions: " + str(selected_positions))
+
+
+
+
+
+
+        #print("selected_positions: " + str(selected_positions))
 
         # selected_positions = [i for i in range(10)]
 
@@ -165,9 +207,12 @@ for epsilon in epsilons:
         # These pseudoranges are the 3 distances from the 3 anchors
         # i.e., the f, g, and h functions
         # They are the MEASURED distances so they have a small amount of noise.
+
+
+
         pseudoranges = [euclidean_distance(selected_positions[i], position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
-        print( "Pseudoranges: " + str(pseudoranges) )
-        print( "Initial position estimate: " + str(position_estimate) )
+        #print( "Pseudoranges: " + str(pseudoranges) )
+        #print( "Initial position estimate: " + str(position_estimate) )
 
         # Determine the 'jacobian' matrix based on the selected anchor nodes
 
@@ -178,28 +223,40 @@ for epsilon in epsilons:
         GA = (selected_positions[1][0] - position_estimate[0])**2 + (selected_positions[1][1] - position_estimate[1])**2 + (selected_positions[1][2] - position_estimate[2])**2
         HA = (selected_positions[2][0] - position_estimate[0])**2 + (selected_positions[2][1] - position_estimate[1])**2 + (selected_positions[2][2] - position_estimate[2])**2
 
+        # # fa, fb, fc are the first row of the jacobian matrix
+        # fa = - 1 / (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
+        # fb = - 1 / (FA**(0.5)) * (selected_positions[0][1] - position_estimate[1])
+        # fc = - 1 / (FA**(0.5)) * (selected_positions[0][2] - position_estimate[2])
 
+        # # ga, gb, gc are the second row of the jacobian matrix
+        # ga = - 1 / (GA**(0.5)) * (selected_positions[1][0] - position_estimate[0])
+        # gb = - 1 / (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
+        # gc = - 1 / (GA**(0.5)) * (selected_positions[1][2] - position_estimate[1])
+
+        # # ga, gb, gc are the third row of the jacobian matrix
+        # ha = - 1 / (HA**(0.5)) * (selected_positions[2][0] - position_estimate[0])
+        # hb = - 1 / (HA**(0.5)) * (selected_positions[2][1] - position_estimate[0])
+        # hc = - 1 / (HA**(0.5)) * (selected_positions[2][2] - position_estimate[0])
 
         # fa, fb, fc are the first row of the jacobian matrix
-        fa = - 1 / (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
-        # print("fa: " + str(fa))
-        fb = - 1 / (FA**(0.5)) * (selected_positions[0][1] - position_estimate[1])
-        fc = - 1 / (FA**(0.5)) * (selected_positions[0][2] - position_estimate[2])
+        fa = - (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
+        fb = - (FA**(0.5)) * (selected_positions[0][1] - position_estimate[1])
+        fc = - (FA**(0.5)) * (selected_positions[0][2] - position_estimate[2])
 
         # ga, gb, gc are the second row of the jacobian matrix
-        ga = - 1 / (GA**(0.5)) * (selected_positions[1][0] - position_estimate[0])
-        gb = - 1 / (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
-        gc = - 1 / (GA**(0.5)) * (selected_positions[1][2] - position_estimate[1])
+        ga = - (GA**(0.5)) * (selected_positions[1][0] - position_estimate[0])
+        gb = - (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
+        gc = - (GA**(0.5)) * (selected_positions[1][2] - position_estimate[1])
 
         # ga, gb, gc are the third row of the jacobian matrix
-        ha = - 1 / (HA**(0.5)) * (selected_positions[2][0] - position_estimate[0])
-        hb = - 1 / (HA**(0.5)) * (selected_positions[2][1] - position_estimate[0])
-        hc = - 1 / (HA**(0.5)) * (selected_positions[2][2] - position_estimate[0])
+        ha = - (HA**(0.5)) * (selected_positions[2][0] - position_estimate[0])
+        hb = - (HA**(0.5)) * (selected_positions[2][1] - position_estimate[0])
+        hc = - (HA**(0.5)) * (selected_positions[2][2] - position_estimate[0])
 
         jacobian_matrix = np.array([[fa, fb, fc],
                                     [ga, gb, gc],
                                     [ha, hb, hc]])
-        print("Jacobian matrix: " + str(jacobian_matrix))
+        #print("Jacobian matrix: " + str(jacobian_matrix))
 
         # Determine the 'gdop' value GDOP(A) from the calculated 'jacobian'
         gdop = calculate_gdop(jacobian_matrix)
@@ -215,21 +272,26 @@ for epsilon in epsilons:
         current_action_index = get_action_index(chosen_anchors)
         # print("Get action index: " + str(current_action_index))
 
+        # prev_q[current_action_index] = Q_of_a[current_action_index]
         Q_of_a[current_action_index] = calculate_q_value(R_of_a, prev_q[current_action_index], action_count)
-        prev_q[current_action_index] = Q_of_a[current_action_index]
-        print("prev q: " + str(prev_q))
-        print("Q of a: " + str(Q_of_a))
+        # print("prev q: " + str(prev_q))
+        #print("Q of a: " + str(Q_of_a))
 
         # Update position estimate
         residual = get_residual_matrix(anchor_positions, pseudoranges)
 
         new_position_deltas = get_new_deltas_to_calculate_new_position(jacobian_matrix, selected_positions, pseudoranges, residual)
-        print("new position deltas: " + str(new_position_deltas))
+        #print("new position deltas: " + str(new_position_deltas))
         position_estimate = position_estimate + new_position_deltas
-        print("New position estimate: " + str(position_estimate))
+        #print("New position estimate: " + str(position_estimate))
         all_positions.append(position_estimate)
-        print(f"\n\n\n DONE WITH ONE STEP {i} \n\n\n")
+        print(position_estimate)
 
+
+
+
+        bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
+        #print(f"\n\n\n DONE WITH ONE STEP {i} \n\n\n")
 
         # Store GDOP(A), R(A), Euclidean distance error for each step of 'total_steps'
 
@@ -248,8 +310,6 @@ for epsilon in epsilons:
 
 
 # Plot Distance Error vs. Steps for each step and each epsilon
-iterator_points = np.array([0,0,0])
-for i in range(10):
-    iterator_points = np.vstack([iterator_points, np.array([i,i,i])])
 
-#bd.plot3d(anchor_positions, target_position, position_initial_estimate, iterator_points)
+
+#bd2.plot3d(anchor_positions, target_position, position_initial_estimate, current_position, centroid)

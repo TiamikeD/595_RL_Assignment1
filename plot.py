@@ -61,8 +61,8 @@ def plot2d(x, y):
     # Plot the data
     ax.plot(x, y, label='error', color='blue')
 
-    ax.set_xlabel('X-axis')
-    ax.set_ylabel('Y-axis')
+    ax.set_xlabel('iteration')
+    ax.set_ylabel('distance error')
     ax.legend()
 
     # Show the plot

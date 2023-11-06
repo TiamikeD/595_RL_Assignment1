@@ -25,7 +25,7 @@ def get_action_index(recs): # KEITH
             return action_index
     return -1
 
-def get_residual_row(anchor_position, pseudorange):
+def get_residual_row(anchor_position, current_position):
     #calculate the three elements under the square root
     #print(f"anchor_position[0]: {anchor_position[0]}")
     #print(f"\npseudorange[0]: {pseudorange[0]}")
@@ -34,9 +34,9 @@ def get_residual_row(anchor_position, pseudorange):
     #print(f"\nanchor_position[2]: {anchor_position[2]}")
     #print(f"\npseudorange[2]: {pseudorange[2]}")
 
-    dx = (anchor_position[0] - pseudorange[0]) ** 2 
-    dy = (anchor_position[1] - pseudorange[1]) ** 2 
-    dz = (anchor_position[2] - pseudorange[2]) ** 2 
+    dx = (anchor_position[0] - current_position[0]) ** 2 
+    dy = (anchor_position[1] - current_position[1]) ** 2 
+    dz = (anchor_position[2] - current_position[2]) ** 2 
     #print(f"\ndx: {dx}\n")
     #print(f"\ndy: {dy}\n")
     #print(f"\ndz: {dz}\n")
@@ -44,10 +44,10 @@ def get_residual_row(anchor_position, pseudorange):
     #take the square root of the sum of the three elements
     return math.sqrt(dx + dy + dz)
 
-def get_residual_matrix(anchor_positions, pseudoranges):
-    residual_row_f = get_residual_row(anchor_positions[0], pseudoranges) - pseudoranges[0]
-    residual_row_g = get_residual_row(anchor_positions[1], pseudoranges) - pseudoranges[1]
-    residual_row_h = get_residual_row(anchor_positions[2], pseudoranges) - pseudoranges[2]
+def get_residual_matrix(anchor_positions, current_position, pseudoranges):
+    residual_row_f = get_residual_row(anchor_positions[0], current_position) - pseudoranges[0]
+    residual_row_g = get_residual_row(anchor_positions[1], current_position) - pseudoranges[1]
+    residual_row_h = get_residual_row(anchor_positions[2], current_position) - pseudoranges[2]
     residual_matrix = np.array( [[residual_row_f], [residual_row_g], [residual_row_h]] )
     return residual_matrix
 
@@ -78,21 +78,21 @@ def choose_anchors_for_exploring(anchors):
 
 def choose_anchors_for_exploiting(Q_values):
     index_of_highest = get_index_of_highest_reward_action(Q_values)
-    print("index of highest:" + str(index_of_highest))
+    # print("index of highest:" + str(index_of_highest))
     return POSSIBLE_ACTIONS[index_of_highest]
 
 def choose_anchors(anchors, anchor_positions, epsilon, Q_values): # TIAMIKE
     explore = check_if_explore_or_exploit(epsilon)
     if(explore): # Choose 3 random anchors (Explore)
-        print("exploring...")
+        # print("exploring...")
         return np.sort(np.random.choice(anchors, size=num_anchors_to_choose, replace=False)) #Number of lines  giving me suicidal thoughts: 1
     else: # Choose most promising anchors (Exploit)
         # Rank anchors by their reward
-        print("exploiting...")
+        # print("exploiting...")
         #print("anchors: " + str(anchors))
         #print("anchor_positions: " + str(anchor_positions))
         index_of_highest = get_index_of_highest_reward_action(Q_values)
-        print(f"index_of_highest:\t{index_of_highest}")
+        # print(f"index_of_highest:\t{index_of_highest}")
         # Choose the three highest ranked anchors
         return anchor_positions[index_of_highest]
         
@@ -147,6 +147,7 @@ def calculate_reward(gdop):
 # Loop through the epsilon values
 for epsilon in epsilons:
     selected_positions = []
+    distance_errors = []
     # Initializing the 'position_stimate' to 'position_initial_estimate'
     # p(hat) ^ (ite)=0
     position_estimate = position_initial_estimate.copy()
@@ -166,7 +167,7 @@ for epsilon in epsilons:
 
     # Main loop for the epsilon-greedy bandit algorithm
     for i in range(total_steps):
-        print( "Iteration: " + str(i) )
+        # print( "Iteration: " + str(i) )
         
         # Select three anchor nodes (action A)
         # Exploration: Choose random actions
@@ -182,10 +183,10 @@ for epsilon in epsilons:
         exploit = not explore
         
         if(explore): 
-           print("exploring...")
+        #    print("exploring...")
            chosen_anchors = choose_anchors_for_exploring(anchor_labels)
         if(exploit):
-            print("exploiting...")
+            # print("exploiting...")
             chosen_anchors = choose_anchors_for_exploiting(Q_of_a)
 
         #chosen_anchors = choose_anchors()
@@ -193,16 +194,11 @@ for epsilon in epsilons:
 
         # Tiamike: I'm assuming selected_positions are the positions of the anchors that were chosen.
         #print("%%%%%%%%%%%%%%%%%%%%%%%%")
-        print(f"chosen_anchors:\t{chosen_anchors}")
-
-
+        # print(f"chosen_anchors:\t{chosen_anchors}")
 
         for index in chosen_anchors:
             selected_positions.append(anchor_positions[index])
-
-
-
-
+        
 
 
         #print("selected_positions: " + str(selected_positions))
@@ -281,10 +277,10 @@ for epsilon in epsilons:
         # prev_q[current_action_index] = Q_of_a[current_action_index]
         Q_of_a[current_action_index] = calculate_q_value(R_of_a, prev_q[current_action_index], action_count)
         # print("prev q: " + str(prev_q))
-        print("Q of a: " + str(Q_of_a))
+        # print("Q of a: " + str(Q_of_a))
 
         # Update position estimate
-        residual = get_residual_matrix(anchor_positions, pseudoranges)
+        residual = get_residual_matrix(anchor_positions, position_estimate, pseudoranges)
 
         new_position_deltas = get_new_deltas_to_calculate_new_position(jacobian_matrix, selected_positions, pseudoranges, residual)
         #print("new position deltas: " + str(new_position_deltas))
@@ -292,6 +288,8 @@ for epsilon in epsilons:
         #print("New position estimate: " + str(position_estimate))
         all_positions.append(position_estimate)
         print(position_estimate)
+
+        distance_errors.append( euclidean_distance(position_estimate, target_position) )
 
 
 
@@ -319,4 +317,6 @@ for epsilon in epsilons:
 
 
 #bd2.plot3d(anchor_positions, target_position, position_initial_estimate, current_position, centroid)
-bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
+# bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
+x_axis = [i for i in range(total_steps)]
+bdplot.plot2d(x_axis, distance_errors)

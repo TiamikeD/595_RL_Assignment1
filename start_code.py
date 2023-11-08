@@ -11,7 +11,7 @@ np.random.seed(19680801)
 
 
 num_anchor_nodes = 5
-total_steps = 100000
+total_steps = 1000000
 num_anchors_to_choose = 3
 
 POSSIBLE_ACTIONS = [np.array([0,1,2]),np.array([0,1,3]),np.array([0,1,4]),np.array([0,2,3]),np.array([0,2,4]),np.array([0,3,4]),np.array([1,2,3]),np.array([1,3,4]),np.array([2,3,4]),np.array([1,2,4])]
@@ -45,26 +45,18 @@ def get_residual_row(selected_positions, current_position):
     #take the square root of the sum of the three elements
     return (dx + dy + dz)**0.5
 
-def get_residual_matrix(selected_positions, current_position, pseudoranges, FA, GA, HA):
+def get_residual_matrix(selected_positions, current_position, pseudoranges):
     residual_row_f = get_residual_row(selected_positions[0], current_position) - pseudoranges[0]
-    # print("sqrt(FA)" + str(FA**0.5))
     residual_row_g = get_residual_row(selected_positions[1], current_position) - pseudoranges[1]
-    # print("sqrt(GA)" + str(GA**0.5))
     residual_row_h = get_residual_row(selected_positions[2], current_position) - pseudoranges[2]
-    # print("sqrt(HA)" + str(HA**0.5))
     residual_matrix = np.array( [[residual_row_f], [residual_row_g], [residual_row_h]] )
     # print("Residual: " + str(residual_matrix))
     return residual_matrix
 
 def get_new_deltas_to_calculate_new_position(jacobian, residual):
-    jacobian_transpose = jacobian.T
-    jacobian_dot_jacobian_transpose = np.dot(jacobian_transpose, jacobian)
+    jacobian_dot_jacobian_transpose = np.dot(jacobian.T, jacobian)
     inverse_matrix = np.linalg.inv(jacobian_dot_jacobian_transpose)
-
-    multiply_me_with_residual = np.dot(inverse_matrix, jacobian_transpose)
-    #print("Residual: " + str(residual))
-
-    #print(f"Transpose:\t\n{jacobian_transpose}\n\n  Dot Product:\t\n{jacobian_dot_jacobian_transpose}\n\n inverse_matrix\t{inverse_matrix}\n\n  multiply_me_with_residual\n{multiply_me_with_residual}\n")
+    multiply_me_with_residual = np.dot(inverse_matrix, jacobian.T)
     return_me = np.dot(multiply_me_with_residual, residual)
 
     return  np.matrix.flatten(return_me)
@@ -76,30 +68,16 @@ def get_index_of_highest_reward_action(Q_values):
 def check_if_explore_or_exploit(epsilon):
     return np.random.binomial(1, epsilon)
 
-def choose_anchors_for_exploring(anchors):
-        return np.sort(np.random.choice(anchors, size=num_anchors_to_choose, replace=False))
 
+def choose_anchors_for_exploring(anchors):
+        # return np.sort(np.random.choice(anchors, size=num_anchors_to_choose, replace=False))
+        return POSSIBLE_ACTIONS[np.random.choice(anchor_labels)]
 
 def choose_anchors_for_exploiting(Q_values):
     index_of_highest = get_index_of_highest_reward_action(Q_values)
     # print("index of highest:" + str(index_of_highest))
     return POSSIBLE_ACTIONS[index_of_highest]
 
-def choose_anchors(anchors, anchor_positions, epsilon, Q_values): # TIAMIKE
-    explore = check_if_explore_or_exploit(epsilon)
-    if(explore): # Choose 3 random anchors (Explore)
-        # print("exploring...")
-        return np.sort(np.random.choice(anchors, size=num_anchors_to_choose, replace=False))
-    else: # Choose most promising anchors (Exploit)
-        # Rank anchors by their reward
-        # print("exploiting...")
-        #print("anchors: " + str(anchors))
-        #print("anchor_positions: " + str(anchor_positions))
-        index_of_highest = get_index_of_highest_reward_action(Q_values)
-        # print(f"index_of_highest:\t{index_of_highest}")
-        # Choose the three highest ranked anchors
-        return anchor_positions[index_of_highest]
-        
 
 def calculate_q_value(reward, prev_q, action_count):
     # Qn = (R1+R2+...+Rn) / (n-1)
@@ -121,12 +99,10 @@ target_position = [10, 35, 0.1]
 
 # Define two epsilon values
 # epsilons = [0.01, 0.3]
-epsilons = [0.3]
+epsilons = [1.0]
 
 # Calculate the centroid of anchor node positions
 centroid = np.mean(anchor_positions, axis=0)
-
-# Set the initial position estimate as the centroid
 position_initial_estimate = centroid # 10, 36, 6
 
 # Function to calculate Euclidean distance
@@ -170,11 +146,10 @@ for epsilon in epsilons:
     for i in range(total_steps):
         print( "Iteration: " + str(i) )
         selected_positions = []
+        distance_errors.append( euclidean_distance(position_estimate, target_position) )
         # Select three anchor nodes (action A)
         # Exploration: Choose random actions
         # Exploitation: Choose actions with highest Q-values
-        # Right now, choose_anchors() selects the index of the anchor.
-
 
         explore = check_if_explore_or_exploit(epsilon)
         
@@ -185,25 +160,19 @@ for epsilon in epsilons:
         
         if(explore): 
         #    print("exploring...")
-           chosen_anchors = choose_anchors_for_exploring(anchor_labels)
+            chosen_anchors = choose_anchors_for_exploring(anchor_labels)
         if(exploit):
             # print("exploiting...")
             chosen_anchors = choose_anchors_for_exploiting(Q_of_a)
-
-        #chosen_anchors = choose_anchors()
-        #print( "Chosen Anchors: " + str(chosen_anchors) )
-
-        # Tiamike: I'm assuming selected_positions are the positions of the anchors that were chosen.
-        #print("%%%%%%%%%%%%%%%%%%%%%%%%")
-        # print(f"chosen_anchors:\t{chosen_anchors}")
 
         for index in chosen_anchors:
             selected_positions.append(anchor_positions[index])
         
         if (0 == i):
-            first_psuedorange = [euclidean_distance(selected_positions, position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
+            first_psuedorange = [euclidean_distance(selected_positions[i], position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
         
         # print("selected_positions: " + str(selected_positions))
+        # print("Position_estimate:" + str(position_estimate))
 
         # selected_positions = [i for i in range(10)]
 
@@ -211,12 +180,8 @@ for epsilon in epsilons:
         # These pseudoranges are the 3 distances from the 3 anchors
         # i.e., the f, g, and h functions
         # They are the MEASURED distances so they have a small amount of noise.
-
-
-
-        pseudoranges = [euclidean_distance(selected_positions, position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
-        #print( "Pseudoranges: " + str(pseudoranges) )
-        #print( "Initial position estimate: " + str(position_estimate) )
+        pseudoranges = [euclidean_distance(selected_positions[i], position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
+        # print( "Pseudoranges: " + str(pseudoranges) )
 
         # Determine the 'jacobian' matrix based on the selected anchor nodes
 
@@ -257,13 +222,14 @@ for epsilon in epsilons:
         # print("Get action index: " + str(current_action_index))
 
         # Update Q-values Q(A)
-        # prev_q[current_action_index] = Q_of_a[current_action_index]
         Q_of_a[current_action_index] = calculate_q_value(R_of_a, prev_q[current_action_index], i)
+        prev_q[current_action_index] = Q_of_a[current_action_index]
         # print("prev q: " + str(prev_q))
         # print("Q of a: " + str(Q_of_a))
 
         # Update position estimate
-        residual = get_residual_matrix(selected_positions, position_estimate, first_psuedorange, FA, GA, HA)
+        # residual = get_residual_matrix(selected_positions, position_estimate, first_psuedorange)
+        residual = get_residual_matrix(selected_positions, position_estimate, pseudoranges)
 
         new_position_deltas = get_new_deltas_to_calculate_new_position(jacobian_matrix, residual)
         # print("new position deltas: " + str(new_position_deltas))
@@ -271,15 +237,6 @@ for epsilon in epsilons:
         # print("New position estimate: " + str(position_estimate))
         all_positions.append(position_estimate)
         # print(position_estimate)
-
-        distance_errors.append( euclidean_distance(position_estimate, target_position) )
-        
-
-
-
-
-        # bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
-        #print(f"\n\n\n DONE WITH ONE STEP {i} \n\n\n")
 
         # Store GDOP(A), R(A), Euclidean distance error for each step of 'total_steps'
 
@@ -300,7 +257,6 @@ for epsilon in epsilons:
 # Plot Distance Error vs. Steps for each step and each epsilon
 
 
-#bd2.plot3d(anchor_positions, target_position, position_initial_estimate, current_position, centroid)
 # bdplot.plot3d(anchor_positions, target_position, position_initial_estimate, all_positions, centroid)
 
 # print(distance_errors)

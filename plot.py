@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-import sympy
 
 
 def plot3d(anchor_points = [], target_point = [], position_initial_estimate = [], iterator_points = [], centroid = []): # KEITH

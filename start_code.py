@@ -2,7 +2,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-import sympy
 import bandit as bd
 import plot as bdplot
 import math
@@ -11,7 +10,7 @@ np.random.seed(19680801)
 
 
 num_anchor_nodes = 5
-total_steps = 1000000
+total_steps = 100000
 num_anchors_to_choose = 3
 
 POSSIBLE_ACTIONS = [np.array([0,1,2]),np.array([0,1,3]),np.array([0,1,4]),np.array([0,2,3]),np.array([0,2,4]),np.array([0,3,4]),np.array([1,2,3]),np.array([1,3,4]),np.array([2,3,4]),np.array([1,2,4])]
@@ -34,9 +33,9 @@ def get_residual_row(selected_positions, current_position):
     # print(f"anchor_position[2]: {selected_positions[2]}")
     #print(f"pseudorange[2]: {pseudorange[2]}")
 
-    dx = (selected_positions[0] - current_position[0]) ** 2 
-    dy = (selected_positions[1] - current_position[1]) ** 2 
-    dz = (selected_positions[2] - current_position[2]) ** 2 
+    dx = (selected_positions[0] - current_position[0]) ** 2
+    dy = (selected_positions[1] - current_position[1]) ** 2
+    dz = (selected_positions[2] - current_position[2]) ** 2
     # print(f"dx: {dx}")
     # print(f"dy: {dy}")
     # print(f"dz: {dz}")
@@ -136,7 +135,7 @@ for epsilon in epsilons:
     all_positions = [position_estimate]
 
     # Initialize Q-values for each epsilon
-    # Tiamike: Also initializing R-values. These are single digit numbers 
+    # Tiamike: Also initializing R-values. These are single digit numbers
     # because each action has only one reward associated
     prev_q = [0,0,0,0,0,0,0,0,0,0]
     Q_of_a = [0,0,0,0,0,0,0,0,0,0]
@@ -144,7 +143,7 @@ for epsilon in epsilons:
 
     # Main loop for the epsilon-greedy bandit algorithm
     for i in range(total_steps):
-        print( "Iteration: " + str(i) )
+        #print( "Iteration: " + str(i) )
         selected_positions = []
         distance_errors.append( euclidean_distance(position_estimate, target_position) )
         # Select three anchor nodes (action A)
@@ -152,14 +151,14 @@ for epsilon in epsilons:
         # Exploitation: Choose actions with highest Q-values
 
         explore = check_if_explore_or_exploit(epsilon)
-        
+
         if(0 == i):
             explore = True
 
         exploit = not explore
-        
-        if(explore): 
-        #    print("exploring...")
+
+        if(explore):
+            print("exploring...")
             chosen_anchors = choose_anchors_for_exploring(anchor_labels)
         if(exploit):
             # print("exploiting...")
@@ -167,10 +166,10 @@ for epsilon in epsilons:
 
         for index in chosen_anchors:
             selected_positions.append(anchor_positions[index])
-        
+
         if (0 == i):
             first_psuedorange = [euclidean_distance(selected_positions[i], position_estimate) + np.random.uniform(-0.0001, 0.0001, 1)[0] for i in range(num_anchors_to_choose)]
-        
+
         # print("selected_positions: " + str(selected_positions))
         # print("Position_estimate:" + str(position_estimate))
 
@@ -187,24 +186,25 @@ for epsilon in epsilons:
 
         # A = ( Xa - X^t )^2 + ( Ya - Y^t )^2 + (Za - Z^t)^2
         # FA, GA, HA are the constants for function f, g and h
+
         FA = (selected_positions[0][0] - position_estimate[0])**2 + (selected_positions[0][1] - position_estimate[1])**2 + (selected_positions[0][2] - position_estimate[2])**2
         GA = (selected_positions[1][0] - position_estimate[0])**2 + (selected_positions[1][1] - position_estimate[1])**2 + (selected_positions[1][2] - position_estimate[2])**2
         HA = (selected_positions[2][0] - position_estimate[0])**2 + (selected_positions[2][1] - position_estimate[1])**2 + (selected_positions[2][2] - position_estimate[2])**2
 
         # fa, fb, fc are the first row of the jacobian matrix
-        fa = - (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
-        fb = - (FA**(0.5)) * (selected_positions[0][1] - position_estimate[1])
-        fc = - (FA**(0.5)) * (selected_positions[0][2] - position_estimate[2])
+        fa = - (FA**(-0.5)) * (selected_positions[0][0] - position_estimate[0])
+        fb = - (FA**(-0.5)) * (selected_positions[0][1] - position_estimate[1])
+        fc = - (FA**(-0.5)) * (selected_positions[0][2] - position_estimate[2])
 
         # ga, gb, gc are the second row of the jacobian matrix
-        ga = - (GA**(0.5)) * (selected_positions[1][0] - position_estimate[0])
-        gb = - (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
-        gc = - (GA**(0.5)) * (selected_positions[1][2] - position_estimate[2])
+        ga = - (GA**(-0.5)) * (selected_positions[1][0] - position_estimate[0])
+        gb = - (GA**(-0.5)) * (selected_positions[1][1] - position_estimate[1])
+        gc = - (GA**(-0.5)) * (selected_positions[1][2] - position_estimate[2])
 
         # ga, gb, gc are the third row of the jacobian matrix
-        ha = - (HA**(0.5)) * (selected_positions[2][0] - position_estimate[0])
-        hb = - (HA**(0.5)) * (selected_positions[2][1] - position_estimate[1])
-        hc = - (HA**(0.5)) * (selected_positions[2][2] - position_estimate[2])
+        ha = - (HA**(-0.5)) * (selected_positions[2][0] - position_estimate[0])
+        hb = - (HA**(-0.5)) * (selected_positions[2][1] - position_estimate[1])
+        hc = - (HA**(-0.5)) * (selected_positions[2][2] - position_estimate[2])
 
         jacobian_matrix = np.array([[fa, fb, fc],
                                     [ga, gb, gc],

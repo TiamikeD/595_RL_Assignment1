@@ -2,100 +2,53 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 
-
-def plot3d(anchor_points = [], target_point = [], position_initial_estimate = [], iterator_points = []): # KEITH
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    blue_diamond, red_x, green_dot, black_dot = 0,0,0,0
-
-    if(anchor_points.any()):
-        for point in anchor_points:
-            ax.scatter(point[0],point[1], point[2], c="blue", marker="D")
-            blue_diamond = mlines.Line2D([], [], color='blue', marker='D', linestyle='None', markersize=10, label='Anchor Point')
-
-
-    if(target_point):
-        ax.scatter(target_point[0], target_point[1], target_point[2], c="red", marker="X")
-        red_x = mlines.Line2D([], [], color='red', marker='X', linestyle='None', markersize=10, label='Target')
-
-    if(position_initial_estimate.any()):
-        ax.scatter(position_initial_estimate[0], position_initial_estimate[1], position_initial_estimate[2], c="black")
-        black_dot = mlines.Line2D([], [], color='black', marker='.',linestyle='None', markersize=10, label='Initial estimate')
-
-    if(iterator_points.any()):
-        for iterator in iterator_points:
-            print(iterator)
-            ax.scatter(iterator[0], iterator[1], iterator[2], c="green")
-            green_dot = mlines.Line2D([], [], color='green', marker='.',linestyle='None', markersize=10, label='Iterator')
-
-
-
-
-    plt.legend(handles=[blue_diamond, red_x, green_dot, black_dot])
-
-
-    ax.set_xlabel('X Axis')
-    ax.set_ylabel('Y Axis')
-    ax.set_zlabel('Z Axis')
-
-    plt.show()
-
-    return
-
-
-def get_jacobian_matrix(selected_positions, position_estimate):
-        FA = (selected_positions[0][0] - position_estimate[0])**2 + (selected_positions[0][1] - position_estimate[1])**2 + (selected_positions[0][2] - position_estimate[2])**2
-        GA = (selected_positions[1][0] - position_estimate[0])**2 + (selected_positions[1][1] - position_estimate[1])**2 + (selected_positions[1][2] - position_estimate[2])**2
-        HA = (selected_positions[2][0] - position_estimate[0])**2 + (selected_positions[2][1] - position_estimate[1])**2 + (selected_positions[2][2] - position_estimate[2])**2
-
-        fa = - 1 / (FA**(0.5)) * (selected_positions[0][0] - position_estimate[0])
-        fb = - 1 / (FA**(0.5)) * (selected_positions[1][0] - position_estimate[1])
-        fc = - 1 / (FA**(0.5)) * (selected_positions[2][0] - position_estimate[2])
-
-        ga = - 1 / (GA**(0.5)) * (selected_positions[0][1] - position_estimate[0])
-        gb = - 1 / (GA**(0.5)) * (selected_positions[1][1] - position_estimate[1])
-        gc = - 1 / (GA**(0.5)) * (selected_positions[2][1] - position_estimate[1])
-
-        ha = - 1 / (HA**(0.5)) * (selected_positions[0][2] - position_estimate[0])
-        hb = - 1 / (HA**(0.5)) * (selected_positions[1][2] - position_estimate[0])
-        hc = - 1 / (HA**(0.5)) * (selected_positions[2][2] - position_estimate[0])
-
-        return np.array([[fa, fb, fc],[ga, gb, gc],[ha, hb, hc]])
-
-def get_action_index(recs, POSSIBLE_ACTIONS): # KEITH
+def get_action_index(recs): # KEITH
     for action_index, action in enumerate(POSSIBLE_ACTIONS):
         if((recs == action).all()):
             return action_index
     return -1
 
-def get_new_deltas_to_calculate_new_position(jacobian, pseudoranges):
-    jacobian_transpose = jacobian.T
+def get_residual_row(selected_positions, current_position):
+    dx = (selected_positions[0] - current_position[0]) ** 2
+    dy = (selected_positions[1] - current_position[1]) ** 2
+    dz = (selected_positions[2] - current_position[2]) ** 2
+
+    return (dx + dy + dz)**0.5
+
+def get_residual_matrix(selected_positions, current_position, pseudoranges):
+    residual_row_f = get_residual_row(selected_positions[0], current_position) - pseudoranges[0]
+    residual_row_g = get_residual_row(selected_positions[1], current_position) - pseudoranges[1]
+    residual_row_h = get_residual_row(selected_positions[2], current_position) - pseudoranges[2]
+    residual_matrix = np.array( [[residual_row_f], [residual_row_g], [residual_row_h]] )
+    return residual_matrix
+
+def get_new_deltas_to_calculate_new_position(jacobian, residual):
     jacobian_dot_jacobian_transpose = np.dot(jacobian.T, jacobian)
     inverse_matrix = np.linalg.inv(jacobian_dot_jacobian_transpose)
-    multiply_me_with_residual = np.dot(inverse_matrix, jacobian_transpose)
-    residual = np.array( [ [pseudoranges[0]], [pseudoranges[1]], [pseudoranges[2]] ] )
+    multiply_me_with_residual = np.dot(inverse_matrix, jacobian.T)
     return_me = np.dot(multiply_me_with_residual, residual)
-    return return_me
+
+    return  np.matrix.flatten(return_me)
+
+def get_index_of_highest_reward_action(Q_values):
+    max_value = max(Q_values)
+    return Q_values.index(max_value)
+
+def check_if_explore_or_exploit(epsilon):
+    return np.random.binomial(1, epsilon)
 
 
-def choose_anchors(anchors, anchor_positions, epsilon, num_anchors_to_choose): # TIAMIKE
-    # explore = np.random.binomial(1, epsilon) # Decide to explore or not
-    # if explore == 1: # Choose 3 random anchors (Explore)
-    recs = np.random.choice(anchors, size=num_anchors_to_choose, replace=False)
-    # else: # Choose most promising anchors (Exploit)
-        # Rank anchors by their reward
-        # Choose the three highest ranked anchors
-    recs = np.sort(recs)
-    return recs
+def choose_anchors_for_exploring(anchors):
+        return POSSIBLE_ACTIONS[np.random.choice(anchor_labels)]
 
-def calculate_q_value(reward, previous_q_value, action_count):
-    # Qn = (R1+R2+...+Rn) / (n-1)
-    # When recalculating, use the existing Q values instead of recalculating:
-    # Q(n+1) = (1/n)(Rn - Qn)   (pg. 31 of textbook)
-    Q = (1 / action_count) * (reward - previous_q_value)
+def choose_anchors_for_exploiting(Q_values):
+    index_of_highest = get_index_of_highest_reward_action(Q_values)
+    return POSSIBLE_ACTIONS[index_of_highest]
+
+
+def calculate_q_value(reward, prev_q, action_count):
+    Q = (1 / (action_count+1)) * (reward - prev_q)
     return Q
-
 
 def euclidean_distance(a, b):
     return np.linalg.norm(a - b)
@@ -105,14 +58,36 @@ def calculate_gdop(jacobian):
     gdop = np.sqrt(np.trace(G))
     return gdop
 
-
 def calculate_reward(gdop):
     return np.sqrt(10/3) / gdop if gdop > 0 else 0
 
-def red_string_for_print(change_me_to_red)->str:
-    return f"\033[31m{change_me_to_red}\033[0m"
+def calculate_jacobian(selected_positions, position_estimate):
+    FA = (selected_positions[0][0] - position_estimate[0])**2 + (selected_positions[0][1] - position_estimate[1])**2 + (selected_positions[0][2] - position_estimate[2])**2
+    GA = (selected_positions[1][0] - position_estimate[0])**2 + (selected_positions[1][1] - position_estimate[1])**2 + (selected_positions[1][2] - position_estimate[2])**2
+    HA = (selected_positions[2][0] - position_estimate[0])**2 + (selected_positions[2][1] - position_estimate[1])**2 + (selected_positions[2][2] - position_estimate[2])**2
 
-def print_exception(message, exception)->None:
-    print(red_string_for_print(message))
-    print(f"\t{exception}")
-    return
+    fa = - (FA**(-0.5)) * (selected_positions[0][0] - position_estimate[0])
+    fb = - (FA**(-0.5)) * (selected_positions[0][1] - position_estimate[1])
+    fc = - (FA**(-0.5)) * (selected_positions[0][2] - position_estimate[2])
+
+    ga = - (GA**(-0.5)) * (selected_positions[1][0] - position_estimate[0])
+    gb = - (GA**(-0.5)) * (selected_positions[1][1] - position_estimate[1])
+    gc = - (GA**(-0.5)) * (selected_positions[1][2] - position_estimate[2])
+
+    ha = - (HA**(-0.5)) * (selected_positions[2][0] - position_estimate[0])
+    hb = - (HA**(-0.5)) * (selected_positions[2][1] - position_estimate[1])
+    hc = - (HA**(-0.5)) * (selected_positions[2][2] - position_estimate[2])
+
+    return np.array([[fa, fb, fc],[ga, gb, gc],[ha, hb, hc]])
+
+
+def get_possible_actions():
+    return [np.array([0,1,2]),np.array([0,1,3]),np.array([0,1,4]),np.array([0,2,3]),np.array([0,2,4]),np.array([0,3,4]),np.array([1,2,3]),np.array([1,3,4]),np.array([2,3,4]),np.array([1,2,4])]
+
+
+def get_anchor_positions():
+    return np.array([[11, 30, 10], [5, 40, -20], [15, 40, 30], [5, 35, 20], [15, 35, -10]], dtype=float)
+
+
+POSSIBLE_ACTIONS = get_possible_actions()
+anchor_labels = [0,1,2,3,4]

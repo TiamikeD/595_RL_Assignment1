@@ -71,13 +71,13 @@ def plot_results(results):
     ax1.set_title(f'Distance Errors')
     ax1.legend()
 
-    ax2.plot(x, y2, label=f'epsilon={epsilon}', color='green')
-    ax2.plot(x, z2, label=f"epsilon={epsilon1}", color="blue")
+    ax2.plot(x, y2, label=f'epsilon={epsilon}', color='blue')
+    ax2.plot(x, z2, label=f"epsilon={epsilon1}", color="red")
     ax2.set_title('Gdop')
     ax2.legend()
 
-    ax3.plot(x, y3, label=f'epsilon={epsilon}', color='red')
-    ax3.plot(x, z3, label=f"epsilon={epsilon1}", color='green')
+    ax3.plot(x, y3, label=f'epsilon={epsilon}', color='blue')
+    ax3.plot(x, z3, label=f"epsilon={epsilon1}", color='red')
     ax3.set_title('Rewards')
     ax3.legend()
 

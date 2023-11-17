@@ -88,6 +88,8 @@ for epsilon in epsilons:
 
     steps = [i for i in range(total_steps)]
 
-    bdplot.plot_gdop_vs_steps(gdops, steps, epsilon)
-    bdplot.plot_reward_vs_steps(rewards, steps, epsilon)
-    bdplot.plot_distance_error_vs_steps(distance_errors, steps, epsilon)
+    #bdplot.plot_gdop_vs_steps(gdops, steps, epsilon)
+    #bdplot.plot_reward_vs_steps(rewards, steps, epsilon)
+    #bdplot.plot_distance_error_vs_steps(distance_errors, steps, epsilon)
+
+    bdplot.plot_results(steps, distance_errors, gdops, rewards, epsilon)

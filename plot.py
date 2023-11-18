@@ -1,75 +1,88 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-import sympy
 
 
-def plot3d(anchor_points = [], target_point = [], position_initial_estimate = [], iterator_points = [], centroid = []): # KEITH
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    blue_diamond, red_x, green_dot, black_dot = 0,0,0,0
-
-    if(anchor_points.any()):
-        for point in anchor_points:
-            ax.scatter(point[0],point[1], point[2], c="blue", marker="D")
-            blue_diamond = mlines.Line2D([], [], color='blue', marker='D', linestyle='None', markersize=10, label='Anchor Point')
+def plot_distance_error_vs_steps(distance_errors, steps, epsilon):
+    return plot2d(steps, distance_errors, f"distance error vs steps e={epsilon}")
 
 
-    if(target_point):
-        ax.scatter(target_point[0], target_point[1], target_point[2], c="red", marker="X")
-        red_x = mlines.Line2D([], [], color='red', marker='X', linestyle='None', markersize=10, label='Target')
+def plot_gdop_vs_steps(gdops, steps, epsilon):
+    return plot2d(steps, gdops, f"gdops vs steps e={epsilon}")
 
-    if(position_initial_estimate.any()):
-        ax.scatter(position_initial_estimate[0], position_initial_estimate[1], position_initial_estimate[2], c="black")
-        black_dot = mlines.Line2D([], [], color='black', marker='.',linestyle='None', markersize=10, label='Initial estimate')
-
-    if(iterator_points):
-        for iterator_point in iterator_points:
-            ax.scatter(iterator_point[0], iterator_point[1], iterator_point[2], c="green")
-            green_dot = mlines.Line2D([], [], color='green', marker='.',linestyle='None', markersize=10, label='Iterator')
-
-    if(centroid.any()):
-        print(centroid)
-        ax.scatter(centroid[0], centroid[1], centroid[2], c="orange")
-        orange_dot = mlines.Line2D([], [], color='orange', marker='.',linestyle='None', markersize=10, label='centroid')
+def plot_reward_vs_steps(rewards, steps, epsilon):
+    return plot2d(steps, rewards, f"rewards vs steps e={epsilon}")
 
 
-
-
-    plt.legend(handles=[blue_diamond, red_x, green_dot, black_dot, orange_dot])
-
-
-    ax.set_xlabel('X Axis')
-    ax.set_ylabel('Y Axis')
-    ax.set_zlabel('Z Axis')
-
-    plt.show()
-
-    return
-
-
-
-
-def plot2d(x, y):
-
-
-
-    # Create a figure and axis
+def plot2d(x, y, title):
     fig, ax = plt.subplots()
+    ax.plot(x, y, label=title, color='blue')
 
-    # Plot the data
-    ax.plot(x, y, label='error', color='blue')
-
-    ax.set_xlabel('iteration')
-    ax.set_ylabel('distance error')
+    ax.set_xlabel('steps')
     ax.legend()
-
-    # Show the plot
     plt.show()
-
-
-
-
-
     return
+
+
+def plot_episodic_results(steps, distance_errors, gdops, rewards, epsilon):
+    x = steps
+    y1 = distance_errors
+    y2 = gdops
+    y3 = rewards
+
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+
+    ax1.plot(x, y1, label=f'epsilon={epsilon}', color='blue')
+    ax1.set_title(f'Distance Errors')
+    ax1.legend()
+
+    ax2.plot(x, y2, label=f'epsilon={epsilon}', color='green')
+    ax2.set_title('Gdop')
+    ax2.legend()
+    ax3.plot(x, y3, label=f'epsilon={epsilon}', color='red')
+    ax3.set_title('Rewards')
+    ax3.legend()
+
+    plt.tight_layout()
+    plt.savefig(f"results_{epsilon}")
+    return 
+
+
+def plot_results(results):
+    x = results[0][0]
+
+    y1 = results[0][1]
+    z1 = results[1][1]
+    
+    y2 = results[0][2]
+    z2 = results[1][2]
+
+    y3 = results[0][3]
+    z3 = results[1][3]
+
+    epsilon = results[0][4]
+    epsilon1 = results[1][4]
+    
+    
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+
+    ax1.plot(x, y1, label=f'epsilon={epsilon}', color='blue')
+    ax1.plot(x, z1, label=f'epsilon={epsilon1}', color='red')
+    ax1.set_title(f'Distance Errors')
+    ax1.legend()
+
+    ax2.plot(x, y2, label=f'epsilon={epsilon}', color='blue')
+    ax2.plot(x, z2, label=f"epsilon={epsilon1}", color="red")
+    ax2.set_title('Gdop')
+    ax2.legend()
+
+    ax3.plot(x, y3, label=f'epsilon={epsilon}', color='blue')
+    ax3.plot(x, z3, label=f"epsilon={epsilon1}", color='red')
+    ax3.set_title('Rewards')
+    ax3.legend()
+
+    plt.tight_layout()
+    plt.savefig("results")
+
+
+
